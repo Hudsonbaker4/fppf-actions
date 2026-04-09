@@ -6,8 +6,6 @@ inputs:
   clone-bluemira:
     required: false
     default: "true"
-  bm-private-data-key:
-    default: ""
   with-artifact:
     required: false
     default: "false"
@@ -29,7 +27,8 @@ runs:
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ inputs.python-version }}-${{
-          hashFiles('requirements/uv/all.txt', 'pyproject.toml') }}
+          hashFiles('requirements/uv/all.txt', 'bluemira/requirements/uv/all.txt',
+          'pyproject.toml', 'bluemira/pyproject.toml') }}
 
     - name: Cache conda
       id: cache-conda
@@ -37,13 +36,24 @@ runs:
       with:
         path: ~/conda_pkgs_dir
         key: ${{ runner.os }}-conda-${{ inputs.python-version }}-${{
-          hashFiles('conda/environment.yml','requirements/conda.txt','pyproject.toml') }}
+          hashFiles('conda/environment.yml', 'bluemira/conda/environment.yml', 'requirements/conda.txt',
+          'bluemira/requirements/conda.txt', 'pyproject.toml', 'bluemira/pyproject.toml') }}
+
+    - name: Determine environment file path
+      id: set-env
+      shell: bash -l {0}
+      run: |
+        if [[ "${{ inputs.clone-bluemira }}" == "true" ]]; then
+          echo "FILE_PATH=bluemira/conda/environment.yml" >> $GITHUB_OUTPUT
+        else
+          echo "FILE_PATH=conda/environment.yml" >> $GITHUB_OUTPUT
+        fi
 
     - name: Install Environment
       uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3
       with:
         activate-environment: bluemira
-        environment-file: conda/environment.yml
+        environment-file: ${{ steps.set-env.outputs.FILE_PATH }}
         miniforge-version: "latest"
         use-only-tar-bz2: false
         conda-remove-defaults: true
